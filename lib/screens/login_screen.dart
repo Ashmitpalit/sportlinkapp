@@ -1,9 +1,40 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import '../services/auth_service.dart';
 import 'signup_screen.dart';
 
-class LoginScreen extends StatelessWidget {
-  const LoginScreen({super.key});
+class LoginScreen extends StatefulWidget {
+  const LoginScreen({super.key, required this.auth});
+  final AuthServiceApi auth;
+
+  @override
+  State<LoginScreen> createState() => _LoginScreenState();
+}
+
+class _LoginScreenState extends State<LoginScreen> {
+  final _emailCtrl = TextEditingController();
+  final _passCtrl = TextEditingController();
+  bool _loading = false;
+  String? _error;
+
+  Future<void> _run(Future<void> Function() fn) async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      await fn();
+    } catch (e) {
+      setState(() {
+        _error = e.toString();
+      });
+    } finally {
+      if (mounted)
+        setState(() {
+          _loading = false;
+        });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -41,21 +72,30 @@ class LoginScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 48),
                 _FaintInput(
-                  hint: 'Phone number, email, or username',
-                  borderRadius: borderRadius,
-                ),
+                    hint: 'Phone number, email, or username',
+                    borderRadius: borderRadius,
+                    controller: _emailCtrl),
                 const SizedBox(height: 16),
                 _FaintInput(
-                  hint: 'Password',
-                  obscure: true,
-                  borderRadius: borderRadius,
-                ),
+                    hint: 'Password',
+                    obscure: true,
+                    borderRadius: borderRadius,
+                    controller: _passCtrl),
                 const SizedBox(height: 28),
                 _GreyButton(
-                  label: 'LOG IN',
+                  label: _loading ? 'Please wait...' : 'LOG IN',
                   borderRadius: borderRadius,
-                  onPressed: () {},
+                  onPressed: _loading
+                      ? null
+                      : () => _run(() => widget.auth.loginWithEmail(
+                          _emailCtrl.text.trim(), _passCtrl.text)),
                 ),
+                if (_error != null) ...[
+                  const SizedBox(height: 12),
+                  Text(_error!,
+                      style: const TextStyle(color: Colors.red),
+                      textAlign: TextAlign.center),
+                ],
                 const SizedBox(height: 28),
                 Row(
                   children: [
@@ -81,7 +121,9 @@ class LoginScreen extends StatelessWidget {
                   backgroundColor: Colors.white,
                   foregroundColor: Colors.black,
                   borderColor: const Color(0xFFE0E0E0),
-                  onPressed: () {},
+                  onPressed: _loading
+                      ? null
+                      : () => _run(() => widget.auth.signInWithGoogle()),
                 ),
                 const SizedBox(height: 12),
                 _SocialButton(
@@ -94,7 +136,9 @@ class LoginScreen extends StatelessWidget {
                   backgroundColor: Colors.black,
                   foregroundColor: Colors.white,
                   borderColor: Colors.black,
-                  onPressed: () {},
+                  onPressed: _loading
+                      ? null
+                      : () => _run(() => widget.auth.signInWithApple()),
                 ),
                 const SizedBox(height: 40),
                 Center(
@@ -109,13 +153,15 @@ class LoginScreen extends StatelessWidget {
                         ),
                       ),
                       GestureDetector(
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                                builder: (_) => const SignUpScreen()),
-                          );
-                        },
+                        onTap: _loading
+                            ? null
+                            : () {
+                                Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                        builder: (_) =>
+                                            SignUpScreen(auth: widget.auth)));
+                              },
                         child: const Text(
                           'Sign Up',
                           style: TextStyle(
@@ -142,16 +188,19 @@ class _FaintInput extends StatelessWidget {
   final String hint;
   final bool obscure;
   final BorderRadius borderRadius;
+  final TextEditingController? controller;
 
   const _FaintInput({
     required this.hint,
     required this.borderRadius,
     this.obscure = false,
+    this.controller,
   });
 
   @override
   Widget build(BuildContext context) {
     return TextField(
+      controller: controller,
       obscureText: obscure,
       decoration: InputDecoration(
         hintText: hint,
@@ -175,7 +224,7 @@ class _FaintInput extends StatelessWidget {
 
 class _GreyButton extends StatelessWidget {
   final String label;
-  final VoidCallback onPressed;
+  final VoidCallback? onPressed;
   final BorderRadius borderRadius;
 
   const _GreyButton({
@@ -213,7 +262,7 @@ class _SocialButton extends StatelessWidget {
   final Color backgroundColor;
   final Color foregroundColor;
   final Color borderColor;
-  final VoidCallback onPressed;
+  final VoidCallback? onPressed;
 
   const _SocialButton({
     required this.label,

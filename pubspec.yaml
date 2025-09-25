@@ -13,6 +13,10 @@ dependencies:
 
   cupertino_icons: ^1.0.8
   flutter_svg: ^2.0.10+1
+  http: ^1.2.2
+  shared_preferences: ^2.3.2
+  google_sign_in: ^6.2.1
+  sign_in_with_apple: ^6.1.0
 
 dev_dependencies:
   flutter_test:
@@ -25,3 +29,5 @@ flutter:
     - assets/google_logo.jpg
     - assets/apple_logo.jpg
     - assets/apple_logo.svg
+    - assets/chainlink.svg
+    - assets/chainlink.png
