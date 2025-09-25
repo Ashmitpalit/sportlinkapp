@@ -15,12 +15,12 @@ class _SplashScreenState extends State<SplashScreen>
     with TickerProviderStateMixin {
   late AnimationController _animationController;
   late AnimationController _arrowController;
-  late AnimationController _swipeController;
   late Animation<double> _fadeAnimation;
   late Animation<Offset> _slideAnimation;
   late Animation<double> _arrowAnimation;
-  late Animation<Offset> _swipeAnimation;
   bool _isSwiping = false;
+  double _swipeProgress = 0.0;
+  double _rotationAngle = 0.0;
 
   @override
   void initState() {
@@ -32,11 +32,6 @@ class _SplashScreenState extends State<SplashScreen>
 
     _arrowController = AnimationController(
       duration: const Duration(milliseconds: 1000),
-      vsync: this,
-    );
-
-    _swipeController = AnimationController(
-      duration: const Duration(milliseconds: 300),
       vsync: this,
     );
 
@@ -64,14 +59,6 @@ class _SplashScreenState extends State<SplashScreen>
       curve: Curves.easeInOut,
     ));
 
-    _swipeAnimation = Tween<Offset>(
-      begin: Offset.zero,
-      end: const Offset(0, -1.0),
-    ).animate(CurvedAnimation(
-      parent: _swipeController,
-      curve: Curves.easeInOut,
-    ));
-
     _animationController.forward();
 
     // Start arrow animation after main animation
@@ -86,20 +73,13 @@ class _SplashScreenState extends State<SplashScreen>
   void dispose() {
     _animationController.dispose();
     _arrowController.dispose();
-    _swipeController.dispose();
     super.dispose();
   }
 
   void _navigateToLogin() {
-    setState(() {
-      _isSwiping = true;
-    });
-
-    _swipeController.forward().then((_) {
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (context) => LoginScreen(auth: widget.auth)),
-      );
-    });
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(builder: (context) => LoginScreen(auth: widget.auth)),
+    );
   }
 
   @override
@@ -107,126 +87,148 @@ class _SplashScreenState extends State<SplashScreen>
     return Scaffold(
       backgroundColor: Colors.white,
       body: GestureDetector(
+        onPanStart: (details) {
+          setState(() {
+            _isSwiping = true;
+            _swipeProgress = 0.0;
+            _rotationAngle = 0.0;
+          });
+        },
         onPanUpdate: (details) {
-          // Detect swipe up gesture
-          if (details.delta.dy < -10 && !_isSwiping) {
-            _navigateToLogin();
+          if (_isSwiping) {
+            setState(() {
+              // Calculate swipe progress based on finger movement
+              _swipeProgress = (-details.delta.dy / 200).clamp(0.0, 1.0);
+              _rotationAngle +=
+                  details.delta.dy * 0.01; // Rotate based on movement
+            });
           }
         },
-        child: AnimatedBuilder(
-          animation: _swipeAnimation,
-          builder: (context, child) {
-            return Transform.translate(
-              offset: Offset(
-                  0,
-                  _swipeAnimation.value.dy *
-                      MediaQuery.of(context).size.height),
-              child: SafeArea(
-                child: Column(
-                  children: [
-                    const Spacer(),
+        onPanEnd: (details) {
+          if (_isSwiping) {
+            // If swiped enough, navigate to login
+            if (_swipeProgress > 0.3) {
+              _navigateToLogin();
+            } else {
+              // Reset if not swiped enough
+              setState(() {
+                _isSwiping = false;
+                _swipeProgress = 0.0;
+                _rotationAngle = 0.0;
+              });
+            }
+          }
+        },
+        child: Transform.translate(
+          offset: Offset(
+              0, -_swipeProgress * MediaQuery.of(context).size.height * 0.3),
+          child: SafeArea(
+            child: Column(
+              children: [
+                const Spacer(),
 
-                    // SPORTLINK Title
-                    Center(
-                      child: FadeTransition(
+                // SPORTLINK Title
+                Center(
+                  child: FadeTransition(
+                    opacity: _fadeAnimation,
+                    child: SlideTransition(
+                      position: _slideAnimation,
+                      child: const Text(
+                        'SPORTLINK',
+                        style: TextStyle(
+                          fontSize: 32,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black,
+                          letterSpacing: 2.0,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 60),
+
+                // Chain Links Icon
+                Center(
+                  child: FadeTransition(
+                    opacity: _fadeAnimation,
+                    child: SlideTransition(
+                      position: _slideAnimation,
+                      child: Transform.rotate(
+                        angle: _rotationAngle,
+                        child: Container(
+                          width: 120,
+                          height: 120,
+                          decoration: const BoxDecoration(
+                            color: Color(0xFF2C2C2C),
+                            shape: BoxShape.circle,
+                          ),
+                          child: Image.asset(
+                            'assets/chainlink.png',
+                            width: 60,
+                            height: 60,
+                            color: Colors.white,
+                            colorBlendMode: BlendMode.srcIn,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+
+                const Spacer(),
+
+                // Animated up arrow and text
+                Center(
+                  child: Column(
+                    children: [
+                      // Animated up arrow
+                      AnimatedBuilder(
+                        animation: _arrowAnimation,
+                        builder: (context, child) {
+                          return Transform.translate(
+                            offset: Offset(0, -10 * _arrowAnimation.value),
+                            child: Container(
+                              width: 40,
+                              height: 40,
+                              decoration: const BoxDecoration(
+                                color: Color(0xFF2C2C2C),
+                                shape: BoxShape.circle,
+                              ),
+                              child: CustomPaint(
+                                size: const Size(24, 24),
+                                painter: ArrowUpPainter(),
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+
+                      const SizedBox(height: 10),
+
+                      // Swipe up text
+                      FadeTransition(
                         opacity: _fadeAnimation,
                         child: SlideTransition(
                           position: _slideAnimation,
                           child: const Text(
-                            'SPORTLINK',
+                            'Swipe up to get started',
                             style: TextStyle(
-                              fontSize: 32,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.black,
-                              letterSpacing: 2.0,
+                              fontSize: 16,
+                              color: Color(0xFF666666),
+                              fontWeight: FontWeight.w400,
                             ),
                           ),
                         ),
                       ),
-                    ),
-
-                    const SizedBox(height: 60),
-
-                    // Chain Links Icon
-                    Center(
-                      child: FadeTransition(
-                        opacity: _fadeAnimation,
-                        child: SlideTransition(
-                          position: _slideAnimation,
-                          child: Container(
-                            width: 120,
-                            height: 120,
-                            decoration: const BoxDecoration(
-                              color: Color(0xFF2C2C2C),
-                              shape: BoxShape.circle,
-                            ),
-                            child: Image.asset(
-                              'assets/chainlink.png',
-                              width: 60,
-                              height: 60,
-                              color: Colors.white,
-                              colorBlendMode: BlendMode.srcIn,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-
-                    const Spacer(),
-
-                    // Animated up arrow and text
-                    Center(
-                      child: Column(
-                        children: [
-                          // Animated up arrow
-                          AnimatedBuilder(
-                            animation: _arrowAnimation,
-                            builder: (context, child) {
-                              return Transform.translate(
-                                offset: Offset(0, -10 * _arrowAnimation.value),
-                                child: Container(
-                                  width: 40,
-                                  height: 40,
-                                  decoration: const BoxDecoration(
-                                    color: Color(0xFF2C2C2C),
-                                    shape: BoxShape.circle,
-                                  ),
-                                  child: CustomPaint(
-                                    size: const Size(24, 24),
-                                    painter: ArrowUpPainter(),
-                                  ),
-                                ),
-                              );
-                            },
-                          ),
-
-                          const SizedBox(height: 10),
-
-                          // Swipe up text
-                          FadeTransition(
-                            opacity: _fadeAnimation,
-                            child: SlideTransition(
-                              position: _slideAnimation,
-                              child: const Text(
-                                'Swipe up to get started',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  color: Color(0xFF666666),
-                                  fontWeight: FontWeight.w400,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-
-                    const SizedBox(height: 40),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
-            );
-          },
+
+                const SizedBox(height: 40),
+              ],
+            ),
+          ),
         ),
       ),
     );
